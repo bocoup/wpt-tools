@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # Amount of time beyond the present to consider certificates "expired." This
 # allows certificates to be proactively re-generated in the "buffer" period
 # prior to their exact expiration time.
-CERT_EXPIRY_BUFFER = dict(hours=1)
+CERT_EXPIRY_BUFFER = dict(hours=6)
 
 class OpenSSL(object):
     def __init__(self, logger, binary, base_path, conf_path, hosts, duration,
