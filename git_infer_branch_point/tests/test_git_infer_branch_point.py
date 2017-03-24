@@ -2,6 +2,7 @@ import os
 import pytest
 import shutil
 import subprocess
+import tempfile
 
 from ..git_infer_branch_point import git_infer_branch_point
 
@@ -13,19 +14,22 @@ Output:
 %s
 """
 
+@pytest.fixture()
+def tmp_dir(request):
+    name = tempfile.mkdtemp()
+    request.addfinalizer(lambda: shutil.rmtree(name, ignore_errors=True))
+    return name
+
 # Create a directory containing a git repository, initialize it with a simple
 # commit history, and return a function for issuing git commands within it.
 # Arrange for the directory to be removed at the completion of the test,
 # regardless of test status.
 @pytest.fixture
-def git(request):
-    os.mkdir(test_repo_path)
-    request.addfinalizer(lambda: shutil.rmtree(test_repo_path))
-
+def git(tmp_dir):
     def git(cmd, *args):
         full_cmd = ["git", cmd] + list(args)
         try:
-            output = subprocess.check_output(full_cmd, cwd=test_repo_path,
+            output = subprocess.check_output(full_cmd, cwd=tmp_dir,
                                              stderr=subprocess.STDOUT)
             return output.decode().strip()
         except subprocess.CalledProcessError as e:
@@ -42,34 +46,34 @@ def git(request):
 
     return git
 
-def test_one_ahead_of_master(git):
+def test_one_ahead_of_master(git, tmp_dir):
     git("checkout", "--detach")
     git("commit", "--allow-empty", "-m", "tmp")
 
-    assert git_infer_branch_point(test_repo_path) == git("rev-parse", "master")
+    assert git_infer_branch_point(tmp_dir) == git("rev-parse", "master")
 
-def test_two_ahead_of_master(git):
+def test_two_ahead_of_master(git, tmp_dir):
     git("checkout", "--detach")
     git("commit", "--allow-empty", "-m", "tmp")
     git("commit", "--allow-empty", "-m", "tmp")
 
-    assert git_infer_branch_point(test_repo_path) == git("rev-parse", "master")
+    assert git_infer_branch_point(tmp_dir) == git("rev-parse", "master")
 
-def test_one_ahead_one_behind_master(git):
+def test_one_ahead_one_behind_master(git, tmp_dir):
     git("checkout", "master~")
     git("commit", "--allow-empty", "-m", "tmp")
 
-    assert git_infer_branch_point(test_repo_path) == git("rev-parse", "master~")
+    assert git_infer_branch_point(tmp_dir) == git("rev-parse", "master~")
 
-def test_one_new_on_master(git):
+def test_one_new_on_master(git, tmp_dir):
     git("commit", "--allow-empty", "-m", "tmp")
     git("branch", "--force", "origin/master")
 
-    assert git_infer_branch_point(test_repo_path) == git("rev-parse", "HEAD")
+    assert git_infer_branch_point(tmp_dir) == git("rev-parse", "HEAD")
 
-def test_two_new_on_master(git):
+def test_two_new_on_master(git, tmp_dir):
     git("commit", "--allow-empty", "-m", "tmp")
     git("commit", "--allow-empty", "-m", "tmp")
     git("branch", "--force", "origin/master")
 
-    assert git_infer_branch_point(test_repo_path) == git("rev-parse", "HEAD")
+    assert git_infer_branch_point(tmp_dir) == git("rev-parse", "HEAD")
